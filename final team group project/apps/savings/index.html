@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>SavingsVault (Savings Account)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Use v5 only! -->
+  <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:960px;margin:24px auto;padding:0 12px}
+    .card{border:1px solid #ddd;border-radius:8px;padding:16px;margin-bottom:16px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    label{display:block;margin:8px 0 4px}
+    input{width:100%;padding:8px;border:1px solid #ccc;border-radius:6px}
+    button{margin-top:10px;padding:10px 14px;border:0;background:#222;color:#fff;border-radius:8px;cursor:pointer}
+    .muted{color:#666;font-size:12px}
+    #log{white-space:pre-wrap;background:#fafafa;border:1px solid #eee;padding:12px;border-radius:8px;min-height:64px}
+  </style>
+</head>
+<body>
+  <h1>Savings Account (SavingsVault)</h1>
+
+  <div class="card">
+    <!-- Use inline handlers to avoid missing event bindings -->
+    <button onclick="connect()">Connect Wallet (MetaMask)</button>
+    <div class="muted" id="who"></div>
+  </div>
+
+  <div class="card">
+    <h2>Parent Actions</h2>
+    <div class="row">
+      <div>
+        <label>Child Address</label>
+        <input id="child" placeholder="0x... child address">
+      </div>
+      <div>
+        <label>Amount (ETH)</label>
+        <input id="amount" placeholder="e.g. 0.1">
+      </div>
+    </div>
+    <label>Unlock Time (child can self-withdraw after this time)</label>
+    <input id="unlock" type="datetime-local">
+    <div class="row">
+      <button onclick="depositFor()">Deposit (depositFor)</button>
+      <button onclick="releaseToChild()">Early release to child (releaseToChild)</button>
+    </div>
+    <div class="muted">Note: The parent address must be the registered parent for this child in <code>SpendingLimitWallet</code>, otherwise the call will be rejected.</div>
+  </div>
+
+  <div class="card">
+    <h2>Child Actions</h2>
+    <div class="row">
+      <div>
+        <label>Child Address (the currently connected wallet must be the child)</label>
+        <input id="child2" placeholder="0x... child address">
+      </div>
+      <div>
+        <label>Amount (ETH)</label>
+        <input id="amount2" placeholder="e.g. 0.05">
+      </div>
+    </div>
+    <button onclick="childWithdraw()">Self-withdraw on unlock (childWithdraw)</button>
+  </div>
+
+  <div class="card">
+    <h2>Query</h2>
+    <div class="row">
+      <div>
+        <label>Child Address (to query)</label>
+        <input id="childQ" placeholder="0x... child address">
+      </div>
+      <div style="align-self:end">
+        <button onclick="checkBalance()">View balance / unlockAt</button>
+      </div>
+    </div>
+    <div id="queryOut" class="muted"></div>
+  </div>
+
+  <div class="card">
+    <h2>Logs</h2>
+    <div id="log"></div>
+  </div>
+
+  <!-- Place at the end to ensure elements are rendered -->
+  <script src="./savings.js"></script>
+</body>
+</html>

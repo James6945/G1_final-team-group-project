@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Merchant Portal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
+
+  <script src="./eth.js"></script>
+<style>
+    :root{
+      --primary:#4f46e5; --primary-dark:#4338ca; --muted:#64748b; --bg:#f6f7fb;
+    }
+    body{font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;background:var(--bg);margin:0}
+    header{background:var(--primary);color:#fff;padding:36px 24px;text-align:center}
+    h1{margin:0 0 8px;font-size:36px;font-weight:700}
+    .sub{opacity:.9}
+    .topbar{display:flex;gap:16px;justify-content:center;margin-top:20px;flex-wrap:wrap}
+    .pill{background:rgba(255,255,255,.15);padding:10px 16px;border-radius:999px}
+    .btn{background:#fff;color:var(--primary);border:0;border-radius:10px;padding:12px 18px;font-weight:700;cursor:pointer}
+    .btn:hover{background:#f2f3ff}
+
+    .wrap{max-width:1100px;margin:24px auto;padding:0 16px;display:grid;grid-template-columns:1fr;gap:16px}
+    .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:20px}
+    .card h2{margin:0 0 14px;color:#111827}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    label{display:block;margin:10px 0 6px;color:#111827}
+    input{width:100%;padding:12px;border:1px solid #d1d5db;border-radius:10px;font-size:16px}
+    .muted{color:var(--muted);font-size:14px}
+    .actions{display:flex;gap:10px;flex-wrap:wrap}
+    .btn2{background:var(--primary);color:#fff;border:0;border-radius:10px;padding:10px 14px;cursor:pointer}
+    .btn2:hover{background:var(--primary-dark)}
+    .badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px}
+    .ok{background:#e6f8f1;color:#0f6b45;border:1px solid #bdebdc}
+    .bad{background:#fdecec;color:#b42318;border:1px solid #f5b5b5}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{border-bottom:1px solid #eee;padding:10px;text-align:left;font-size:14px}
+    #log{white-space:pre-wrap;background:#fafafa;border:1px solid #eee;border-radius:10px;padding:10px;min-height:60px;margin-top:8px}
+    #qrCanvas{border:1px solid #eee;border-radius:12px}
+    @media (max-width:900px){.row{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Merchant Portal</h1>
+    <div class="sub">Receive payments from Child Accounts</div>
+    <div class="topbar">
+      <div class="pill">Connected: <span id="addr">-</span></div>
+      <div class="pill">Network: <span id="net">-</span></div>
+      <button class="btn" id="btnConnect"><i class="fa-solid fa-plug"></i> Connect Wallet</button>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <!-- My Merchant Address -->
+    <div class="card">
+      <h2>My Merchant Address</h2>
+      <div class="row">
+        <div>
+          <label>Your Address</label>
+          <input id="me" readonly placeholder="0x..." />
+          <div class="actions">
+            <button class="btn2" id="btnCopy"><i class="fa-regular fa-copy"></i> Copy</button>
+            <button class="btn2" id="btnBal"><i class="fa-solid fa-coins"></i> Refresh Balance</button>
+          </div>
+          <div class="muted" id="bal"></div>
+        </div>
+        <div>
+          <label>Whitelist Check (enter Parent address)</label>
+          <input id="parentAddr" placeholder="0x... Parent address" />
+          <div class="actions">
+            <button class="btn2" id="btnCheckWL"><i class="fa-solid fa-circle-check"></i> Check Whitelist</button>
+            <span id="wlBadge" class="badge muted">unknown</span>
+          </div>
+          <div class="muted">This checks <code>merchantWhitelist[parent][merchant]</code> on the contract.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Payment QR -->
+<div class="card">
+  <h2>Payment QR</h2>
+  <div class="row">
+    <!-- Left: form + buttons -->
+    <div>
+      <label>Amount (ETH)</label>
+      <input id="qrAmount" placeholder="e.g. 0.05" />
+      <div class="actions" style="margin-top:12px">
+        <button class="btn2" onclick="generateQR()">
+          <i class="fa-solid fa-qrcode"></i> Generate QR
+        </button>
+        <button class="btn2" onclick="copyPaymentLink()">
+          <i class="fa-regular fa-copy"></i> Copy Link
+        </button>
+        <button class="btn2" onclick="downloadQR()">
+          <i class="fa-solid fa-download"></i> Download PNG
+        </button>
+      </div>
+      <div class="muted" style="margin-top:6px">
+        Uses EIP-681: <code>ethereum:&lt;merchant&gt;@&lt;chainId&gt;?value=&lt;wei&gt;</code>
+      </div>
+      <div class="muted" id="qrLink" style="word-break: break-all; margin-top:6px"></div>
+    </div>
+
+    <!-- Right: QR canvas -->
+    <div style="display:flex;align-items:center;justify-content:center">
+      <canvas id="qrCanvas" width="320" height="320"
+              style="border:1px solid #e5e7eb;border-radius:14px;background:#fff"></canvas>
+    </div>
+  </div>
+</div>
+
+
+    <!-- Live & Historical Events -->
+    <div class="card">
+      <h2>Payments</h2>
+      <div class="actions" style="margin-bottom:8px">
+        <button class="btn2" id="btnStart"><i class="fa-solid fa-satellite-dish"></i> Start Live Stream</button>
+        <button class="btn2" id="btnStop"><i class="fa-solid fa-ban"></i> Stop</button>
+        <button class="btn2" id="btnFetch"><i class="fa-solid fa-clock-rotate-left"></i> Fetch Recent (5000 blocks)</button>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Child</th>
+            <th>Merchant</th>
+            <th>Amount (ETH)</th>
+            <th>Tx</th>
+          </tr>
+        </thead>
+        <tbody id="tbl"></tbody>
+      </table>
+
+      <div id="log"></div>
+    </div>
+  </div>
+
+  <script src="./eth.js"></script>
+  <script>
+    // ===== QR Code Logic =====
+    let lastPaymentUri = null;
+    let currentChainId = null;
+    async function refreshChainId() {
+      if (!provider) return;
+      const net = await provider.getNetwork();
+      currentChainId = net.chainId;
+    }
+    async function ensureBaseReady() {
+      if (!provider || !myAddr) { alert("Connect wallet first"); throw new Error("not ready"); }
+      if (!currentChainId) await refreshChainId();
+    }
+    function buildPaymentURI(amountEth) {
+      const wei = ethers.utils.parseEther(String(amountEth)).toString();
+      return `ethereum:${myAddr}@${currentChainId}?value=${wei}`;
+    }
+    async function generateQR() {
+      await ensureBaseReady();
+      const amt = document.getElementById('qrAmount').value.trim();
+      if (!amt || Number(amt) <= 0) { alert("Invalid amount"); return; }
+      const uri = buildPaymentURI(amt);
+      lastPaymentUri = uri;
+      const canvas = document.getElementById('qrCanvas');
+      await QRCode.toCanvas(canvas, uri, { width: 260, margin: 1 });
+      document.getElementById('qrLink').textContent = uri;
+    }
+    async function copyPaymentLink() {
+      if (!lastPaymentUri) await generateQR();
+      await navigator.clipboard.writeText(lastPaymentUri);
+      alert("Copied: " + lastPaymentUri);
+    }
+    function downloadQR() {
+      const canvas = document.getElementById('qrCanvas');
+      const url = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'payment-qr.png';
+      a.click();
+    }
+    document.getElementById('btnGenQR').onclick = generateQR;
+    document.getElementById('btnCopyLink').onclick = copyPaymentLink;
+    document.getElementById('btnDlQR').onclick = downloadQR;
+  </script>
+</body>
+</html>
