@@ -1,0 +1,22 @@
+{
+  "name": "final-team-group-project",
+  "private": true,
+  "scripts": {
+    "compile": "hardhat compile",
+    "deploy:hardhat": "hardhat run scripts/deploy.js",
+    "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
+    "abi": "node scripts/abi.js",
+    "dev:parent": "cd apps/parent && npm run dev",
+    "dev:child": "cd apps/child && npm run dev",
+    "dev:merchant": "cd apps/merchant && npm run dev",
+    "dev:backend": "cd apps/backend && npm start"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^3.0.0",
+    "dotenv": "^16.4.5",
+    "hardhat": "^2.18.0"
+  },
+  "dependencies": {
+    "ethers": "^6.15.0"
+  }
+}
